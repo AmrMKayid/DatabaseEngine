@@ -35,9 +35,9 @@ public class Page implements Serializable {
         this.path = path;
         tuples = new ArrayList<>(maximumSize);
 
+        // TODO:
         savePage();
     }
-
 
     /**
      * Save & insert tuples into the page
@@ -91,6 +91,31 @@ public class Page implements Serializable {
         ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
         oos.writeObject(this);
         oos.close();
+    }
+
+    public ArrayList<Tuple> getTuples() {
+        return tuples;
+    }
+
+    public void setTuples(ArrayList<Tuple> tuples) {
+        this.tuples = tuples;
+    }
+
+    public int getTupleCount() {
+        return tupleCount;
+    }
+
+    public boolean isFull() {
+        return tupleCount == maximumSize;
+    }
+
+    public void setTupleCount(int tupleCount) {
+        this.tupleCount = tupleCount;
+
+    }
+
+    public boolean isEmpty() {
+        return tupleCount == 0;
     }
 
     /**
@@ -153,60 +178,5 @@ public class Page implements Serializable {
 
         }
         return null;
-    }
-
-    /**
-     * get tuples arraylist
-     *
-     * @return
-     */
-    public ArrayList<Tuple> getTuples() {
-        return tuples;
-    }
-
-    /**
-     * set the page's arraylist tuples to new arraylist
-     *
-     * @param tuples
-     */
-    public void setTuples(ArrayList<Tuple> tuples) {
-        this.tuples = tuples;
-    }
-
-    /**
-     * get number of tuples inside the page
-     *
-     * @return
-     */
-    public int getTupleCount() {
-        return tupleCount;
-    }
-
-    /**
-     * check if the page is full
-     *
-     * @return
-     */
-    public boolean isFull() {
-        return tupleCount == maximumSize;
-    }
-
-    /**
-     * change the count of tuples inside the page
-     *
-     * @param tupleCount
-     */
-    public void setTupleCount(int tupleCount) {
-        this.tupleCount = tupleCount;
-
-    }
-
-    /**
-     * check of the page is empty
-     *
-     * @return
-     */
-    public boolean isEmpty() {
-        return tupleCount == 0;
     }
 }

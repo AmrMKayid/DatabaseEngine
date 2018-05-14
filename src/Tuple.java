@@ -18,7 +18,6 @@ public class Tuple implements Serializable, Comparable<Tuple> {
     public String[] types, colName;
     private int key;
 
-
     /**
      * Creates a new tuple
      *
@@ -33,7 +32,6 @@ public class Tuple implements Serializable, Comparable<Tuple> {
         this.key = key;
         this.colName = colName;
     }
-
 
     /**
      * Get the index of the given string
@@ -67,7 +65,6 @@ public class Tuple implements Serializable, Comparable<Tuple> {
         }
         return result;
     }
-
 
     /**
      * add new value to specific index
@@ -124,7 +121,6 @@ public class Tuple implements Serializable, Comparable<Tuple> {
         }
         return equal;
     }
-
 
     /**
      * comparing tuples

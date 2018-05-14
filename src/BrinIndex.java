@@ -23,7 +23,6 @@ public class BrinIndex implements Serializable {
     private transient DenseLayer denseLayer;
     private transient BrinLayer brinLayer;
 
-
     /**
      * Constructor that creates the BRIN index for a given table
      *
@@ -36,9 +35,7 @@ public class BrinIndex implements Serializable {
      * @throws ClassNotFoundException
      * @throws DBAppException
      */
-    public BrinIndex(String dataPath, Hashtable<String, String> htblColNameType,
-                     String indexkey, String primarykey, String tableName)
-            throws IOException, ClassNotFoundException, DBAppException {
+    public BrinIndex(String dataPath, Hashtable<String, String> htblColNameType, String indexkey, String primarykey, String tableName) throws IOException, ClassNotFoundException, DBAppException {
         this.dataPath = dataPath;
         indexPath = dataPath + indexkey + '/';
         this.tableName = tableName;
@@ -145,60 +142,58 @@ public class BrinIndex implements Serializable {
         ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(index));
         oos.writeObject(this);
         oos.close();
-	}
-	public Iterator<Tuple> search(Object min,Object max,boolean minEq,boolean maxEq) throws FileNotFoundException, ClassNotFoundException, IOException{
-		fetchBrinLayer();
-		fetchDenseLayer();
-			HashSet<Integer> pages=brinLayer.search(min,max,minEq,maxEq);
+    }
 
-		return denseLayer.search(min,max,minEq,maxEq,pages);
+    public Iterator<Tuple> search(Object min, Object max, boolean minEq, boolean maxEq) throws FileNotFoundException, ClassNotFoundException, IOException {
+        fetchBrinLayer();
+        fetchDenseLayer();
+        HashSet<Integer> pages = brinLayer.search(min, max, minEq, maxEq);
 
-	}
+        return denseLayer.search(min, max, minEq, maxEq, pages);
 
-	public void deleteTuple(Tuple tupleToDelete) throws FileNotFoundException, ClassNotFoundException, IOException, DBAppException
-	{
-		fetchBrinLayer();
-		fetchDenseLayer();
-		// Read page number from brin layer
-		HashSet<Integer> list = new HashSet<>();
-		Object idx = tupleToDelete.get()[tupleToDelete.getIndex(indexColName)];
-		list = brinLayer.search(idx, idx, true, true);
-		if(list.isEmpty())
-		{
-			System.err.println("Delete-trace: Tuple doesn't exist in index");
-			return;
-		}
-		int pageNumber = list.iterator().next();
+    }
 
-		denseLayer.delete(tupleToDelete, pageNumber);
-		brinLayer.refresh(pageNumber,denseLayer.noPages);
-	}
+    public void deleteTuple(Tuple tupleToDelete) throws FileNotFoundException, ClassNotFoundException, IOException, DBAppException {
+        fetchBrinLayer();
+        fetchDenseLayer();
+        // Read page number from brin layer
+        HashSet<Integer> list = new HashSet<>();
+        Object idx = tupleToDelete.get()[tupleToDelete.getIndex(indexColName)];
+        list = brinLayer.search(idx, idx, true, true);
+        if (list.isEmpty()) {
+            System.err.println("Delete-trace: Tuple doesn't exist in index");
+            return;
+        }
+        int pageNumber = list.iterator().next();
 
-	public void insertTuple(Tuple t, int pagetable) throws FileNotFoundException, ClassNotFoundException, IOException, DBAppException {
-		fetchBrinLayer();
-		fetchDenseLayer();
-		HashSet<Integer> list = new HashSet<>();
-		Object idx = t.get()[t.getIndex(indexColName)];
-		list = brinLayer.search(idx, idx, true, true);
-		int page;
-		if(list.isEmpty())
-			page=denseLayer.noPages;
-		else
-			page=list.iterator().next();
-		page=denseLayer.insert(t, page,pagetable);
-		brinLayer.refresh(page,denseLayer.noPages);
-	}
+        denseLayer.delete(tupleToDelete, pageNumber);
+        brinLayer.refresh(pageNumber, denseLayer.noPages);
+    }
 
-	public void drop() throws IOException, ClassNotFoundException
-	{
-		fetchBrinLayer();
-		fetchDenseLayer();
-		denseLayer.drop();
-		brinLayer.drop();
-		File dir = new File(indexPath);
-		for(File file : dir.listFiles())
-			file.delete();
+    public void insertTuple(Tuple t, int pagetable) throws FileNotFoundException, ClassNotFoundException, IOException, DBAppException {
+        fetchBrinLayer();
+        fetchDenseLayer();
+        HashSet<Integer> list = new HashSet<>();
+        Object idx = t.get()[t.getIndex(indexColName)];
+        list = brinLayer.search(idx, idx, true, true);
+        int page;
+        if (list.isEmpty())
+            page = denseLayer.noPages;
+        else
+            page = list.iterator().next();
+        page = denseLayer.insert(t, page, pagetable);
+        brinLayer.refresh(page, denseLayer.noPages);
+    }
 
-	}
+    public void drop() throws IOException, ClassNotFoundException {
+        fetchBrinLayer();
+        fetchDenseLayer();
+        denseLayer.drop();
+        brinLayer.drop();
+        File dir = new File(indexPath);
+        for (File file : dir.listFiles())
+            file.delete();
+
+    }
 
 }

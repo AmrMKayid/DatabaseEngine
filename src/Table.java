@@ -14,10 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 
-import com.sun.javafx.scene.paint.GradientUtils.Point;
 
-/**
- */
 public class Table implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -32,7 +29,6 @@ public class Table implements Serializable {
     private String tableName, path, strClusteringKeyColumn;
     private int curPageIndex, maxPageSize, numOfCols, pagetmp;
 
-
     /**
      * Get the index of the current page
      *
@@ -41,6 +37,7 @@ public class Table implements Serializable {
     public int getCurPageIndex() {
         return curPageIndex;
     }
+
 
     public Table(String tableName, String path, Hashtable<String, String> htblColNameType,
                  String strClusteringKeyColumn) throws DBAppException, IOException {
@@ -520,7 +517,7 @@ public class Table implements Serializable {
         File dir = new File(path);
         for (File folder : dir.listFiles()) {
             if (folder.isDirectory()) {
-                File file = new File(path + folder.getName() + "/" + folder.getName() + ".class");
+                File file = new File(path + folder.getName() + "/" + strColName + ".class");
                 if (file.exists()) {
                     ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
                     BrinIndex index = (BrinIndex) ois.readObject();
@@ -552,21 +549,25 @@ public class Table implements Serializable {
         Object max;
         switch (htblColNameType.get(strColumnName).toLowerCase()) {
             case "java.lang.integer":
-                min = Integer.MIN_VALUE;
-                max = Integer.MAX_VALUE;
+                min = Integer.MAX_VALUE;
+                max = Integer.MIN_VALUE;
+                break;
             case "java.lang.string":
-                min = "";
-                max = "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ";
+                min = "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ";
+                max = "";
+                break;
             case "java.lang.double":
-                min = Double.MIN_VALUE;
-                max = Double.MAX_VALUE;
+                min = Double.MAX_VALUE;
+                max = Double.MIN_VALUE;
+                break;
 
             case "java.util.date":
-                min = new Date(Long.MIN_VALUE);
-                max = new Date(Long.MAX_VALUE);
+                min = new Date(Long.MAX_VALUE);
+                max = new Date(Long.MIN_VALUE);
+                break;
             default:
-                min = Integer.MIN_VALUE;
-                max = Integer.MAX_VALUE;
+                min = Integer.MAX_VALUE;
+                max = Integer.MIN_VALUE;
         }
 
         boolean mineq = false;
@@ -592,40 +593,40 @@ public class Table implements Serializable {
             }
         }
 
-            ArrayList<Tuple> tabletubles = new ArrayList<Tuple>();
+        ArrayList<Tuple> tabletubles = new ArrayList<Tuple>();
 
-            for (int i = 0; i <= this.getCurPageIndex(); i++) {
-                File table = new File(
-                        "databases/" + tableName + "/" + tableName + "/" + tableName + "_" + i + ".class");
-                System.out.println("databases/" + tableName + "/" + tableName + "/" + tableName + "_" + i + ".class");
-                InputStream file = new FileInputStream(table);
-                InputStream buffer = new BufferedInputStream(file);
-                ObjectInput input = new ObjectInputStream(buffer);
-                try {
+        for (int i = 0; i <= this.getCurPageIndex(); i++) {
+            File table = new File(
+                    "databases/" + tableName + "/" + tableName + "/" + tableName + "_" + i + ".class");
+            System.out.println("databases/" + tableName + "/" + tableName + "/" + tableName + "_" + i + ".class");
+            InputStream file = new FileInputStream(table);
+            InputStream buffer = new BufferedInputStream(file);
+            ObjectInput input = new ObjectInputStream(buffer);
+            try {
 
-                    Page p = (Page) input.readObject();
+                Page p = (Page) input.readObject();
 
-                    ArrayList<Tuple> t = p.getTuples();
+                ArrayList<Tuple> t = p.getTuples();
 
-                    for (Tuple tt : t) {
-                        if (tt != null) {
-                            int myindex = tt.getIndex(strColumnName);
-                            Object o = tt.getValues()[myindex];
-                            if (compare(o, min) >= 0 && compare(o, max) <= 0) {
-                                if (!((compare(o, min) == 0 && !mineq) || (compare(o, max) == 0 && !maxeq)))
-                                    tabletubles.add(tt);
-                            }
-
+                for (Tuple tt : t) {
+                    if (tt != null) {
+                        int myindex = tt.getIndex(strColumnName);
+                        Object o = tt.getValues()[myindex];
+                        if (compare(o, min) >= 0 && compare(o, max) <= 0) {
+                            if (!((compare(o, min) == 0 && !mineq) || (compare(o, max) == 0 && !maxeq)))
+                                tabletubles.add(tt);
                         }
+
                     }
-
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
                 }
-                input.close();
-            }
 
-            return tabletubles.iterator();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+            input.close();
+        }
+
+        return tabletubles.iterator();
 
 
 
@@ -659,7 +660,7 @@ public class Table implements Serializable {
         if (type.contains("Integer")) {
             return Math.max((Integer) max, (Integer) object);
         } else if (type.contains("Double")) {
-            return Math.max((Integer) max, (Integer) object);
+            return Math.max((Double) max, (Double) object);
 
         } else if (type.contains("String")) {
             if (((String) max).compareTo((String) object) == 1)
@@ -690,7 +691,7 @@ public class Table implements Serializable {
         if (type.contains("Integer")) {
             return Math.min((Integer) min, (Integer) object);
         } else if (type.contains("Double")) {
-            return Math.min((Integer) min, (Integer) object);
+            return Math.min((Double) min, (Double) object);
 
         } else if (type.contains("String")) {
             if (((String) min).compareTo((String) object) == -1)
@@ -787,6 +788,22 @@ public class Table implements Serializable {
                 return ((Date) x).compareTo(((Date) y));
         }
         return 0;
+
+    }
+
+    public void rollBack() throws IOException, ClassNotFoundException, DBAppException {
+        fetchBRINindices();
+        ArrayList<String> indexedColNames = new ArrayList<String>();
+
+        for (BrinIndex index : indexList) {
+//        	index.insertTuple(t,page);
+            indexedColNames.add(index.getIndexColName());
+//        	createBRINIndex(index.getIndexColName());
+            index.drop();
+        }
+        indexList = new ArrayList<BrinIndex>();
+        for (String col : indexedColNames)
+            createBRINIndex(col);
 
     }
 }

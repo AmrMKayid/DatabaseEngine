@@ -18,7 +18,6 @@ public class DenseLayer implements Serializable {
     /**
      * Dense Layer that store the sorted values of the pages and point to them
      */
-
     public String primarykey;
     public String indexkey;
     public String tableName, dataPath, indexPath, DenseLayerPath;
@@ -39,9 +38,7 @@ public class DenseLayer implements Serializable {
      * @throws ClassNotFoundException
      * @throws DBAppException
      */
-    public DenseLayer(String indexPath, Hashtable<String, String> htblColNameType,
-                      String indexkey, String primarykey, String dataPath, String tableName)
-            throws IOException, ClassNotFoundException, DBAppException {
+    public DenseLayer(String indexPath, Hashtable<String, String> htblColNameType, String indexkey, String primarykey, String dataPath, String tableName) throws IOException, ClassNotFoundException, DBAppException {
         this.primarykey = primarykey;
         this.indexkey = indexkey;
         this.htblColNameType = htblColNameType;
@@ -159,40 +156,163 @@ public class DenseLayer implements Serializable {
         oos.close();
     }
 
-	public Iterator<Tuple> search(Object min,Object max,boolean minEq,boolean maxEq, HashSet<Integer> pages) throws FileNotFoundException, IOException, ClassNotFoundException {
-		ArrayList<Tuple> tuples= new ArrayList<>();
-		for(Integer x : pages){
-			String name = DenseLayerPath+indexkey +  "dense_" + x+ ".class";
-			ObjectInputStream ois = new ObjectInputStream(new FileInputStream(name));
-			Page page = (Page) ois.readObject();
-			for(Tuple t:page.getTuples()){
-				if(compare(t.getValues()[0],min)>=0 && compare(t.getValues()[0],max)<=0){
-					if(!((compare(t.getValues()[0],min)==0 && !minEq )|| (compare(t.getValues()[0],max)==0 && !maxEq)))
-						tuples.add(t);
+    public Iterator<Tuple> search(Object min, Object max, boolean minEq, boolean maxEq, HashSet<Integer> pages) throws FileNotFoundException, IOException, ClassNotFoundException {
+        ArrayList<Tuple> tuples = new ArrayList<>();
+        for (Integer x : pages) {
+            String name = DenseLayerPath + indexkey + "dense_" + x + ".class";
+            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(name));
+            Page page = (Page) ois.readObject();
+            for (Tuple t : page.getTuples()) {
+                if (compare(t.getValues()[0], min) >= 0 && compare(t.getValues()[0], max) <= 0) {
+                    if (!((compare(t.getValues()[0], min) == 0 && !minEq) || (compare(t.getValues()[0], max) == 0 && !maxEq)))
+                        tuples.add(t);
 
-				}
-			}
-			ois.close();
+                }
+            }
+            ois.close();
 
-		}
-		Iterator<Tuple> t=tuples.iterator();
-		return t;
-	}
-
-	public int compare(Object x,Object y){
-		switch (y.getClass().getName()) {
-        case "java.lang.Integer":
-            return ((Integer) x).compareTo(((Integer) y));
-        case "java.lang.String":
-            return ((String) x).compareTo(((String) y));
-        case "java.lang.double":
-            return ((Double) x).compareTo(((Double) y));
-        case "java.lang.boolean":
-            return ((Boolean) x).compareTo(((Boolean) y));
-        case "java.util.date":
-            return ((Date) x).compareTo(((Date) y));
+        }
+        Iterator<Tuple> t = tuples.iterator();
+        return t;
     }
 
+    public int compare(Object x, Object y) {
+        switch (y.getClass().getName()) {
+            case "java.lang.Integer":
+                return ((Integer) x).compareTo(((Integer) y));
+            case "java.lang.String":
+                return ((String) x).compareTo(((String) y));
+            case "java.lang.double":
+                return ((Double) x).compareTo(((Double) y));
+            case "java.lang.boolean":
+                return ((Boolean) x).compareTo(((Boolean) y));
+            case "java.util.date":
+                return ((Date) x).compareTo(((Date) y));
+        }
+        return 0;
+
+    }
+
+    public void delete(Tuple tupleToDelete, int pageNum) throws DBAppException, FileNotFoundException, IOException, ClassNotFoundException {
+        if (pageNum > noPages)
+            throw new DBAppException("Tuple doesn't exist in Dense-Layer index");
+        File file = new File(DenseLayerPath + indexkey + "dense_" + pageNum + ".class");
+        Page page = null;
+        if (file.exists()) {
+            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
+            page = (Page) ois.readObject();
+            ois.close();
+        }
+        if (page == null)
+            throw new DBAppException("Tuple doesn't exist in Dense-Layer index");
+
+        int idx = 0;
+        // Loops over all of the tuples in this page
+        while (idx < page.getTupleCount()) {
+            Tuple curTuple = page.getTuples().get(idx++);
+            Object c1 = tupleToDelete.get()[1];
+            Object c2 = curTuple.get()[1];
+
+            // If the current tuple equals the tuple that we want to delete
+            if (compare(c1, c2) == 0) {
+                page.delete(curTuple);
+                break;
+            }
+        }
+
+        Page prevPage = page;
+        page = loadPage(++pageNum);
+        // Shift all of the next tuples
+        while (page != null) {
+            Tuple curTuple = page.getTuples().get(0);
+            prevPage.insert(curTuple, false);
+            page.delete(curTuple);
+            page = loadPage(++pageNum);
+
+        }
+
+        // Save the changes
+        saveindex();
+    }
+
+    public int insert(Tuple t, int pageNum, int pagetable) throws FileNotFoundException, IOException, ClassNotFoundException, DBAppException {
+        int indexKeyPos = t.getIndex(indexkey);
+        int primaryKeyPos = t.getIndex(primarykey);
+        Object[] values = new Object[3];
+        values[0] = t.get()[indexKeyPos];
+        values[1] = t.get()[primaryKeyPos];
+        values[2] = pagetable;
+
+        String[] types = new String[3];
+        types[0] = t.getTypes()[indexKeyPos];
+        types[1] = t.getTypes()[primaryKeyPos];
+        types[2] = "java.lang.integer";
+
+        String[] colName = new String[3];
+        colName[0] = t.colName[indexKeyPos];
+        colName[1] = t.colName[primaryKeyPos];
+        colName[2] = "page.number";
+
+        Tuple newTuple = new Tuple(values, types, colName, 0);
+        if (pageNum >= noPages) {
+            File file = new File(DenseLayerPath + indexkey + "dense_" + (pageNum) + ".class");
+            Page page = null;
+            if (file.exists()) {
+                ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
+                page = (Page) ois.readObject();
+                ois.close();
+            }
+            if (page.isFull())
+                page = createPage();
+            page.insert(newTuple, true);
+            saveindex();
+            return noPages;
+        }
+        for (int i = pageNum; i <= noPages; i++) {
+            File file2 = new File(DenseLayerPath + indexkey + "dense_" + i + ".class");
+            Page curpage = null;
+            if (file2.exists()) {
+                ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file2));
+                curpage = (Page) ois.readObject();
+                ois.close();
+            }
+            if (curpage == null) break;
+            if (curpage.isFull()) {
+                Tuple tmp = curpage.getTuples().get(curpage.getTuples().size() - 1);
+                curpage.getTuples().remove(tmp);
+                curpage.insert(newTuple, true);
+                newTuple = tmp;
+                curpage.savePage();
+            } else {
+                curpage.insert(newTuple, true);
+                curpage.savePage();
+                break;
+            }
+        }
+        saveindex();
+        return pageNum;
+
+
+    }
+
+
+    public Page loadPage(int pageNum) throws ClassNotFoundException, IOException {
+        File file = new File(DenseLayerPath + indexkey + "dense_" + pageNum + ".class");
+        Page page = null;
+        if (file.exists()) {
+            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
+            page = (Page) ois.readObject();
+            ois.close();
+        }
+        return page;
+    }
+
+    public void drop() throws IOException {
+        File dir = new File(DenseLayerPath);
+        for (File file : dir.listFiles())
+            file.delete();
+
+    }
 
 
 }
